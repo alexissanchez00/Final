@@ -1,10 +1,22 @@
 import pygame
 import random
-import sys  # Agregado para cerrar el programa limpiamente si hay error
+import sys  # Necesario para PyInstaller y para cerrar
+import os   # <--- AGREGADO: Necesario para gestionar rutas
 import Constantes
 from Personaje1 import Personaje
 from Mustang import Mustang
 
+# --- NUEVA FUNCIÓN PARA EJECUTABLES ---
+def ruta_recursos(ruta_relativa):
+    """ Obtiene la ruta absoluta al recurso, funcione como script o como exe """
+    try:
+        # PyInstaller crea una carpeta temporal en _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, ruta_relativa)
+# ---------------------------------------
 
 def escalar_img(image, scale):
     w = image.get_width()
@@ -16,6 +28,7 @@ def cargar_imagenes(paths, size=None):
     imgs = []
     for p in paths:
         try:
+            # Aquí 'p' ya vendrá procesado por ruta_recursos desde el game_loop
             img = pygame.image.load(p).convert_alpha()
             if size:
                 img = pygame.transform.scale(img, size)
@@ -106,39 +119,43 @@ def game_loop():
     ventana = pygame.display.set_mode((Constantes.ANCHO, Constantes.ALTO))
     pygame.display.set_caption("RunPy")
 
-    ruta_musica = "assets/Musica.mp3" 
+    # USAMOS LA NUEVA FUNCIÓN AQUÍ
+    ruta_musica = ruta_recursos("assets/Musica.mp3")
     try:
         pygame.mixer.music.load(ruta_musica)
-        pygame.mixer.music.set_volume(0.5) # Volumen al 50%
-        pygame.mixer.music.play(-1) # -1 significa loop infinito
+        pygame.mixer.music.set_volume(0.5) 
+        pygame.mixer.music.play(-1) 
     except Exception as e:
         print(f"AVISO: No se pudo cargar la música en '{ruta_musica}'. Error: {e}")
 
     # Cargar Fondo
     try:
-        imagen_fondo = pygame.image.load("assets/images/calle.PNG")
+        # USAMOS LA NUEVA FUNCIÓN AQUÍ
+        imagen_fondo = pygame.image.load(ruta_recursos("assets/images/calle.PNG"))
         imagen_fondo = pygame.transform.scale(imagen_fondo, (Constantes.ANCHO, Constantes.ALTO))
     except Exception as e:
         print(f"ERROR CRÍTICO: No se encontró el fondo. {e}")
-        return False # Salir si no hay fondo
+        return False 
 
     # Cargar Corazones
     img_corazon_lleno = None
     img_corazon_vacio = None
     try:
-        raw_lleno = pygame.image.load("assets/Corazon.png")
-        raw_vacio = pygame.image.load("assets/Sinvida.png")
+        # USAMOS LA NUEVA FUNCIÓN AQUÍ
+        raw_lleno = pygame.image.load(ruta_recursos("assets/Corazon.png"))
+        raw_vacio = pygame.image.load(ruta_recursos("assets/Sinvida.png"))
         img_corazon_lleno = pygame.transform.scale(raw_lleno, (70, 70))
         img_corazon_vacio = pygame.transform.scale(raw_vacio, (70, 70))
     except Exception as e:
         print(f"ADVERTENCIA: No se cargaron corazones. {e}")
 
     # Cargar frames de coches (sprites)
+    # USAMOS LA NUEVA FUNCIÓN AQUÍ PARA CADA ELEMENTO DE LA LISTA
     car_images = [
-        "assets/images/Carro0.png",
-        "assets/images/Carro1.png",
-        "assets/images/Carro2.png",
-        "assets/images/Carro3.png",
+        ruta_recursos("assets/images/Carro0.png"),
+        ruta_recursos("assets/images/Carro1.png"),
+        ruta_recursos("assets/images/Carro2.png"),
+        ruta_recursos("assets/images/Carro3.png"),
     ]
     car_w, car_h = 180, 160
     car_frames = cargar_imagenes(car_images, size=(car_w, car_h))
@@ -147,7 +164,8 @@ def game_loop():
     animaciones = []
     try:
         for i in range(6):
-            ruta_personaje = f"assets/images/characters/sprite{i}.png"
+            # USAMOS LA NUEVA FUNCIÓN AQUÍ
+            ruta_personaje = ruta_recursos(f"assets/images/characters/sprite{i}.png")
             img = pygame.image.load(ruta_personaje)
             img = escalar_img(img, Constantes.SCALA_PERSONAJE)
             animaciones.append(img)
@@ -155,13 +173,11 @@ def game_loop():
         print(f"ERROR CRÍTICO: Falló la carga del personaje. Detalle: {e}")
         return False 
 
-    # VERIFICACIÓN DE SEGURIDAD
     if len(animaciones) == 0:
         print("ERROR FATAL: La lista de animaciones está vacía.")
         return False
 
     suelo_inicial_y = 680
-    # Calcular offsets para la hitbox
     if animaciones and len(animaciones) > 0:
         sprite_h = animaciones[0].get_height()
         offset_bottom = sprite_h // 4
@@ -186,10 +202,10 @@ def game_loop():
     last_hit_time = -hit_cooldown_ms
 
 
-    tiempo_limite = 15 # Segundos que dura el nivel
+    tiempo_limite = 15 
     tiempo_inicio = pygame.time.get_ticks()
     fuente_timer = pygame.font.SysFont(None, 40)
-    tiempo_agotado = False # Bandera para saber si salimos por tiempo
+    tiempo_agotado = False 
 
     reloj = pygame.time.Clock()
     run = True
@@ -197,13 +213,11 @@ def game_loop():
     while run:
         reloj.tick(Constantes.FPS)
 
-        # 1. Lógica de Scroll del Fondo
         if mover_derecha:
             Constantes.scroll_x -= Constantes.scroll_speed
         if abs(Constantes.scroll_x) > Constantes.ANCHO:
             Constantes.scroll_x = 0
 
-        # 2. Dibujar Fondo
         if imagen_fondo:
             ventana.blit(imagen_fondo, (Constantes.scroll_x, 0))
             ventana.blit(imagen_fondo, (Constantes.scroll_x + Constantes.ANCHO, 0))
@@ -212,7 +226,6 @@ def game_loop():
 
         ahora = pygame.time.get_ticks()
         
-        # 3. Movimiento del Jugador
         delta_x = 0
         delta_y = 0
 
@@ -245,12 +258,9 @@ def game_loop():
         jugador.update()
         jugador.dibujar(ventana)
 
-        # Condición de Muerte por Altura
         if jugador.forma.y <= 450 and not jugador.en_el_aire:
-
             run = False  
 
-        # 6. Eventos de Teclado
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.mixer.music.stop()
@@ -266,7 +276,6 @@ def game_loop():
                 if event.key == pygame.K_s: mover_abajo = False
                 if event.key == pygame.K_SPACE: saltar = False
         
-        # 7. HUD Vidas
         for i in range(max_vidas):
             x = 10 + i * 80
             y = 10
@@ -277,7 +286,6 @@ def game_loop():
                 color = (255, 0, 0) if i < vidas else (100, 100, 100)
                 pygame.draw.rect(ventana, color, (x, y, 40, 40))
 
-        # --- NUEVO: HUD Temporizador y Lógica de Fin de Tiempo ---
         segundos_transcurridos = (ahora - tiempo_inicio) / 1000
         tiempo_restante = max(0, tiempo_limite - int(segundos_transcurridos))
         
@@ -290,19 +298,16 @@ def game_loop():
 
         pygame.display.update()
 
-    pygame.mixer.music.stop() # Detener música al salir
+    pygame.mixer.music.stop() 
 
     if tiempo_agotado:
-        # Si se acabó el tiempo, regresamos False para volver al menú de inicio
         return False
     else:
-        # Si murió (por altura u otra razón), mostramos pantalla de muerte
         return pantalla_muerte(ventana)
 
 if __name__ == "__main__":
     try:
         pygame.init()
-        # Inicializar mixer explícitamente por si acaso
         pygame.mixer.init()
         while True:
             accion = pantalla_inicio()
